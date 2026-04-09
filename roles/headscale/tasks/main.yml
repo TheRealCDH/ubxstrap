@@ -60,8 +60,20 @@
     mode: '0644'
   notify: restart headscale
 
+- name: Template headscale systemd service
+  template:
+    src: "headscale.service.j2"
+    dest: "/etc/systemd/system/headscale.service"
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart headscale
+
 - name: Ensure headscale is enabled and started
   systemd:
     name: headscale
     enabled: yes
     state: started
+    daemon_reload: yes

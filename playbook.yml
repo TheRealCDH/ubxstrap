@@ -48,11 +48,20 @@
         - name: Create Headscale user
           command: "headscale users create {{ tailscale_namespace }}"
           register: user_create
-          failed_when: "'user already exists' not in user_create.stderr and user_create.rc != 0"
-          changed_when: "'user already exists' not in user_create.stderr"
+          failed_when: "'UNIQUE constraint failed' not in user_create.stderr and user_create.rc != 0"
+          changed_when: "'UNIQUE constraint failed' not in user_create.stderr"
+
+        - name: Get Headscale User ID
+          command: "headscale users list -o json"
+          register: users_list_raw
+          changed_when: false
+
+        - name: Set Headscale User ID fact
+          set_fact:
+            headscale_user_id: "{{ (users_list_raw.stdout | from_json) | selectattr('name', 'equalto', tailscale_namespace) | map(attribute='id') | first }}"
 
         - name: Generate Auth Key
-          command: "headscale --user {{ tailscale_namespace }} preauthkeys create --reusable --expiration 24h"
+          command: "headscale preauthkeys create --user {{ headscale_user_id }} --reusable --expiration 24h"
           register: auth_key_raw
 
         - name: Extract Auth Key
