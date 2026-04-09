@@ -41,7 +41,7 @@
             # Ansible handles this automatically if the roles are in the same dir as the playbook.
             
             ansible-playbook \
-              -i "localhost," \
+              -i "$FLAKE_DIR/inventory.ini" \
               -c local \
               "$FLAKE_DIR/playbook.yml" \
               -e "host_ip=$LOCAL_IP" \
@@ -51,7 +51,10 @@
       in
       {
         packages.default = ubxstrap;
-        apps.default = flake-utils.lib.mkApp { drv = ubxstrap; };
+        apps.default = {
+          type = "app";
+          program = "${ubxstrap}/bin/ubxstrap";
+        };
         
         devShells.default = pkgs.mkShell {
           buildInputs = [
