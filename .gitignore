@@ -1,0 +1,6 @@
+.ansible_cache
+*.retry
+*.log
+.nix-node
+result
+.direnv

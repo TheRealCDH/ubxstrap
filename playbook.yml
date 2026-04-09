@@ -1,0 +1,68 @@
+---
+- name: Setup Headscale and Tailscale on Ubuntu 24.04
+  hosts: localhost
+  connection: local
+  become: true
+  vars:
+    headscale_version: "0.28.0"
+    headscale_user: "headscale"
+    headscale_group: "headscale"
+    headscale_home: "/var/lib/headscale"
+    headscale_config_dir: "/etc/headscale"
+    headscale_port: 8080
+    headscale_server_url: "http://{{ host_ip }}:{{ headscale_port }}"
+    tailscale_namespace: "admin"
+  
+  tasks:
+    - name: Ensure dependencies are installed
+      apt:
+        name:
+          - curl
+          - gnupg
+          - apt-transport-https
+        state: present
+        update_cache: yes
+
+    - name: Run Headscale role
+      include_role:
+        name: headscale
+
+    - name: Run Tailscale role
+      include_role:
+        name: tailscale
+
+    - name: Check if Tailscale is already authenticated
+      command: tailscale status
+      register: tailscale_status_raw
+      failed_when: false
+      changed_when: false
+
+    - name: Set tailscale_authenticated fact
+      set_fact:
+        tailscale_authenticated: "{{ 'Logged out' not in tailscale_status_raw.stdout and 'Tailscale is stopped' not in tailscale_status_raw.stdout and tailscale_status_raw.rc == 0 }}"
+
+    - name: Register local node if not authenticated
+      when: not tailscale_authenticated
+      block:
+        - name: Create Headscale user
+          command: "headscale users create {{ tailscale_namespace }}"
+          register: user_create
+          failed_when: "'user already exists' not in user_create.stderr and user_create.rc != 0"
+          changed_when: "'user already exists' not in user_create.stderr"
+
+        - name: Generate Auth Key
+          command: "headscale --user {{ tailscale_namespace }} preauthkeys create --reusable --expiration 24h"
+          register: auth_key_raw
+
+        - name: Extract Auth Key
+          set_fact:
+            headscale_auth_key: "{{ auth_key_raw.stdout | trim }}"
+
+        - name: Join Tailnet
+          command: "tailscale up --login-server {{ headscale_server_url }} --authkey {{ headscale_auth_key }}"
+          register: tailscale_up
+          changed_when: true
+
+    - name: Display status
+      debug:
+        msg: "Headscale is running at {{ headscale_server_url }}. Local node status: {{ 'Authenticated' if tailscale_authenticated else 'Newly Registered' }}"
