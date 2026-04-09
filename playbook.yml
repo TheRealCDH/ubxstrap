@@ -28,6 +28,9 @@
       include_role:
         name: headscale
 
+    - name: Flush handlers to ensure Headscale is restarted
+      meta: flush_handlers
+
     - name: Run Tailscale role
       include_role:
         name: tailscale
