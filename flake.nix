@@ -31,10 +31,15 @@
             
             # Check for sudo
             if [ "$EUID" -ne 0 ]; then
-              echo "This script needs to be run with sudo to modify system files."
-              exec sudo nix run ".#ubxstrap" -- "$@"
+              echo "Error: This script must be run as root (use sudo)."
+              echo "Please run: sudo nix run github:TheRealCDH/ubxstrap"
+              exit 1
             fi
 
+            # We change to a temporary directory so Ansible can write its .ansible cache
+            # But we must ensure Ansible finds the roles relative to the playbook.
+            # Ansible handles this automatically if the roles are in the same dir as the playbook.
+            
             ansible-playbook \
               -i "localhost," \
               -c local \

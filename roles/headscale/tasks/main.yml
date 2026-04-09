@@ -25,11 +25,26 @@
     - "{{ headscale_config_dir }}"
     - "{{ headscale_home }}"
 
+- name: Detect architecture
+  set_fact:
+    arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else 'unknown' }}"
+
+- name: Fail if unknown architecture
+  fail:
+    msg: "Unsupported architecture: {{ ansible_architecture }}"
+  when: arch == 'unknown'
+
+- name: Ensure python3-apt is installed
+  apt:
+    name: python3-apt
+    state: present
+
 - name: Download headscale deb package
   get_url:
-    url: "https://github.com/juanfont/headscale/releases/download/v{{ headscale_version }}/headscale_{{ headscale_version }}_linux_amd64.deb"
+    url: "https://github.com/juanfont/headscale/releases/download/v{{ headscale_version }}/headscale_{{ headscale_version }}_linux_{{ arch }}.deb"
     dest: "/tmp/headscale.deb"
     mode: '0644'
+    force: yes
 
 - name: Install headscale deb package
   apt:
